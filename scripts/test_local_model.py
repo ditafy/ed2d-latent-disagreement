@@ -2,6 +2,7 @@ import argparse
 from pathlib import Path
 
 import torch
+import torch.nn.functional as F
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
@@ -42,6 +43,16 @@ def parse_args() -> argparse.Namespace:
         default=64,
         help="Maximum number of new tokens to generate in the smoke test.",
     )
+    parser.add_argument(
+        "--text-a",
+        default="The claim appears credible based on the available evidence.",
+        help="First text used for similarity/disagreement testing.",
+    )
+    parser.add_argument(
+        "--text-b",
+        default="The claim seems trustworthy according to the reported facts.",
+        help="Second text used for similarity/disagreement testing.",
+    )
     return parser.parse_args()
 
 
@@ -63,6 +74,22 @@ def resolve_device(device_name: str) -> str:
     if torch.backends.mps.is_available():
         return "mps"
     return "cpu"
+
+
+def encode_text_to_pooled_vector(model, tokenizer, text: str, device: str) -> torch.Tensor:
+    inputs = tokenizer(text, return_tensors="pt")
+    inputs = {k: v.to(device) for k, v in inputs.items()}
+
+    with torch.no_grad():
+        outputs = model(
+            **inputs,
+            output_hidden_states=True,
+            return_dict=True,
+        )
+
+    final_hidden = outputs.hidden_states[-1]
+    pooled_vector = final_hidden.mean(dim=1)
+    return pooled_vector
 
 
 def main() -> None:
@@ -123,6 +150,43 @@ def main() -> None:
     print("\nGenerated text:")
     print(generated_text)
     print("\nGeneration test passed.")
+
+    print("\n=== Hidden State Extraction Test ===")
+    attention_mask = torch.ones_like(generated, device=generated.device)
+    with torch.no_grad():
+        outputs = model(
+            input_ids=generated,
+            attention_mask=attention_mask,
+            output_hidden_states=True,
+            return_dict=True,
+        )
+
+    final_hidden = outputs.hidden_states[-1]
+    if new_tokens > 0:
+        pooled_source = final_hidden[:, input_length:, :]
+    else:
+        pooled_source = final_hidden
+    pooled_vector = pooled_source.mean(dim=1)
+
+    print(f"Final hidden states shape: {tuple(final_hidden.shape)}")
+    print(f"Pooled vector shape: {tuple(pooled_vector.shape)}")
+    print("\nHidden state extraction test passed.")
+
+    print("\n=== Similarity / Disagreement Test ===")
+    print(f"Text A: {args.text_a}")
+    print(f"Text B: {args.text_b}")
+
+    pooled_a = encode_text_to_pooled_vector(model, tokenizer, args.text_a, device)
+    pooled_b = encode_text_to_pooled_vector(model, tokenizer, args.text_b, device)
+
+    similarity = F.cosine_similarity(pooled_a, pooled_b, dim=1).item()
+    disagreement = 1.0 - similarity
+
+    print(f"Pooled vector A shape: {tuple(pooled_a.shape)}")
+    print(f"Pooled vector B shape: {tuple(pooled_b.shape)}")
+    print(f"Cosine similarity: {similarity:.6f}")
+    print(f"Disagreement: {disagreement:.6f}")
+    print("\nSimilarity/disagreement test passed.")
 
 
 if __name__ == "__main__":
