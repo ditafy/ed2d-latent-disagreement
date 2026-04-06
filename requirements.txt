@@ -6,4 +6,8 @@ pandas>=2.1.0
 tiktoken>=0.5.0
 tqdm>=4.66.0
 
-# Optional: run Qwen locally via an OpenAI-compatible server (pulls in torch + vllm)
+# Local open-source model inference for Phase 1 / future refactor
+torch>=2.2.0
+transformers>=4.40.0
+accelerate>=0.30.0
+sentencepiece>=0.2.0
