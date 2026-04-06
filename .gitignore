@@ -1,0 +1,49 @@
+# macOS
+.DS_Store
+
+# Python cache / build artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE / editor
+.vscode/
+.idea/
+
+# Local environment files
+.env
+.env.*
+
+# Logs
+*.log
+logs/
+
+# Experiment outputs
+Results/
+batch_results/
+outputs/
+checkpoints/
+
+# Model / cache directories
+models/
+model_cache/
+.cache/
+
+# Jupyter
+.ipynb_checkpoints/
