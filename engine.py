@@ -6,6 +6,8 @@ import time
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 
+import torch
+
 from config import (ROLES, PHASES, DIMENSIONS, FREE_ROUNDS, SAVE_DIR, SAVE_FMT, 
                     AUTO_SAVE, RoleConfig, ENABLE_EVIDENCE, EVIDENCE_PHASE, 
                     PHASE_TEMPLATES, SCORING_JUDGE_ROLES, SUMMARY_JUDGE_CONFIG,
@@ -34,6 +36,9 @@ class Debate:
         self.last_scores: Optional[Dict[str, int]] = None  # Cached scores for the last run
         self.last_verdict: Optional[str] = None            # Cached verdict for the last run
         self.last_summary: Optional[str] = None            # Cached summary for the last run
+        self.analysis_targets = {"Affirmative_Opening", "Negative_Opening"}
+        self.analysis_outputs: Dict[str, Dict] = {}
+        self.analysis_metrics: Dict[str, Dict] = {}
 
     def _detect_domain(self, news_text: str) -> str:
         """Detect the domain of the news"""
@@ -141,10 +146,20 @@ class Debate:
         else:
             self.transcript.append({"speaker": role, "text": reply})
 
-    def _ask(self, role: str, prompt: str) -> str:
+    def _ask(self, role: str, prompt: str, return_mode: str = "text") -> str:
         """Ask specified role and record conversation"""
         agent = self.agents[role]
-        reply = agent.ask(self.shared, prompt, temperature=self.T)
+        response = agent.ask(self.shared, prompt, temperature=self.T, return_mode=return_mode)
+        if return_mode == "analysis":
+            reply = response.text
+            self.analysis_outputs[role] = {
+                "text": response.text,
+                "pooled_vector": response.pooled_vector,
+                "generated_token_count": response.generated_token_count,
+                "sequence_length": response.sequence_length,
+            }
+        else:
+            reply = response
         self._record(role, prompt, reply)
         _log(f"{role}:\n{reply}\n")
         return reply
@@ -213,7 +228,8 @@ class Debate:
             seq = self._get_speakers_sequence(phase, speakers)
             for turn, sp in enumerate(seq, 1):
                 prompt = self._build_prompt(sp, tpl, news_text, turn, phase)
-                self._ask(sp, prompt)
+                return_mode = "analysis" if phase == "Opening" and sp in self.analysis_targets else "text"
+                self._ask(sp, prompt, return_mode=return_mode)
 
     def _get_speakers_sequence(self, phase: str, speakers: List[str]):
         """Get speakers sequence"""
@@ -289,6 +305,8 @@ class Debate:
         """Run complete debate process"""
         assert news_text, "news_text cannot be empty"
         self.news_stem = news_path.stem
+        self.analysis_outputs = {}
+        self.analysis_metrics = {}
 
         # Set up domain context
         self._setup_domain_context(news_text)
@@ -300,13 +318,45 @@ class Debate:
 
         # Execute debate phases
         self._run_debate_phases(news_text)
+        self._compute_analysis_metrics()
         
         # Judging phase
         scores, verdict, summary = self._judge(news_text)
+        analysis_summary = {}
+        for role, data in self.analysis_outputs.items():
+            pooled_vector = data.get("pooled_vector")
+            analysis_summary[role] = {
+                "text": data.get("text"),
+                "pooled_vector_shape": tuple(pooled_vector.shape) if pooled_vector is not None else None,
+                "generated_token_count": data.get("generated_token_count"),
+                "sequence_length": data.get("sequence_length"),
+            }
         return {
             "scores": scores,
             "verdict": verdict,
-            "summary": summary
+            "summary": summary,
+            "analysis_outputs": analysis_summary,
+            "analysis_metrics": self.analysis_metrics,
+        }
+
+    def _compute_analysis_metrics(self):
+        """Compute similarity/disagreement for the currently tracked analysis roles."""
+        affirmative = self.analysis_outputs.get("Affirmative_Opening", {})
+        negative = self.analysis_outputs.get("Negative_Opening", {})
+        aff_vec = affirmative.get("pooled_vector")
+        neg_vec = negative.get("pooled_vector")
+
+        if aff_vec is None or neg_vec is None:
+            self.analysis_metrics = {}
+            return
+
+        similarity = torch.nn.functional.cosine_similarity(aff_vec, neg_vec, dim=1).item()
+        self.analysis_metrics = {
+            "opening": {
+                "roles": ["Affirmative_Opening", "Negative_Opening"],
+                "similarity": similarity,
+                "disagreement": 1.0 - similarity,
+            }
         }
 
     def _judge(self, news_text: str) -> Tuple[Dict[str, int], str, str]:
