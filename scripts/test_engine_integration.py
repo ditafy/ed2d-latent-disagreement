@@ -36,6 +36,11 @@ def parse_args() -> argparse.Namespace:
         default="Apple will release a new quantum computer next year.",
         help="News text used for the single-sample debate test.",
     )
+    parser.add_argument(
+        "--analysis-phases",
+        default="Opening,Rebuttal,Free,Closing",
+        help="Comma-separated debate phases to enable for analysis.",
+    )
     return parser.parse_args()
 
 
@@ -46,30 +51,28 @@ def main() -> None:
 
     debate = Debate(model_name=args.model, T=0.0, sleep=0.0)
     debate.news_stem = "tmp_engine_test_news"
+    debate.enabled_analysis_phases = {
+        phase.strip() for phase in args.analysis_phases.split(",") if phase.strip()
+    }
     debate._setup_domain_context(args.news_text)
-
-    opening_speakers = ["Affirmative_Opening", "Negative_Opening"]
-    opening_template = None
     from config import PHASES  # local import keeps the script lightweight
-
-    for phase, speakers, tpl in PHASES:
-        if phase == "Opening":
-            opening_template = tpl
-            opening_speakers = speakers
-            break
-
-    if opening_template is None:
-        raise RuntimeError("Opening phase template not found.")
-
-    for turn, speaker in enumerate(opening_speakers, 1):
-        prompt = debate._build_prompt(speaker, opening_template, args.news_text, turn, "Opening")
-        return_mode = "analysis" if speaker in debate.analysis_targets else "text"
-        debate._ask(speaker, prompt, return_mode=return_mode)
+    for phase, speakers, template in PHASES:
+        seq = debate._get_speakers_sequence(phase, speakers)
+        for turn, speaker in enumerate(seq, 1):
+            prompt = debate._build_prompt(speaker, template, args.news_text, turn, phase)
+            target_roles = set(debate.analysis_targets.get(phase, []))
+            return_mode = (
+                "analysis"
+                if phase in debate.enabled_analysis_phases and speaker in target_roles
+                else "text"
+            )
+            debate._ask(speaker, prompt, return_mode=return_mode)
     debate._compute_analysis_metrics()
 
     print("=== Engine Integration Test ===")
     print(f"Domain: {debate.domain}")
     print(f"Profiles generated: {len(debate.profiles)}")
+    print(f"Enabled analysis phases: {sorted(debate.enabled_analysis_phases)}")
 
     print("\n=== Transcript Check ===")
     print(f"Transcript entries: {len(debate.transcript)}")
@@ -79,29 +82,32 @@ def main() -> None:
 
     print("\n=== Analysis Output Check ===")
     analysis_outputs = {}
-    for role, data in debate.analysis_outputs.items():
-        pooled_vector = data.get("pooled_vector")
-        analysis_outputs[role] = {
-            "pooled_vector_shape": tuple(pooled_vector.shape) if pooled_vector is not None else None,
-            "generated_token_count": data.get("generated_token_count"),
-            "sequence_length": data.get("sequence_length"),
-        }
-    print(f"Analysis roles: {list(analysis_outputs.keys())}")
-    for role, data in analysis_outputs.items():
-        print(f"{role}: pooled_vector_shape={data.get('pooled_vector_shape')}, "
-              f"generated_token_count={data.get('generated_token_count')}, "
-              f"sequence_length={data.get('sequence_length')}")
-
-    expected_roles = {"Affirmative_Opening", "Negative_Opening"}
-    print(f"Has both opening roles: {expected_roles.issubset(set(analysis_outputs.keys()))}")
+    for phase, role_data in debate.analysis_outputs.items():
+        analysis_outputs[phase] = {}
+        for role, data in role_data.items():
+            pooled_vector = data.get("pooled_vector")
+            analysis_outputs[phase][role] = {
+                "pooled_vector_shape": tuple(pooled_vector.shape) if pooled_vector is not None else None,
+                "generated_token_count": data.get("generated_token_count"),
+                "sequence_length": data.get("sequence_length"),
+            }
+    print(f"Analysis phases with outputs: {[phase for phase, data in analysis_outputs.items() if data]}")
+    for phase, role_data in analysis_outputs.items():
+        if not role_data:
+            continue
+        print(f"{phase}:")
+        for role, data in role_data.items():
+            print(f"  {role}: pooled_vector_shape={data.get('pooled_vector_shape')}, "
+                  f"generated_token_count={data.get('generated_token_count')}, "
+                  f"sequence_length={data.get('sequence_length')}")
 
     print("\n=== Similarity / Disagreement Check ===")
-    metrics = debate.analysis_metrics.get("opening", {})
-    print(f"Opening metrics present: {bool(metrics)}")
-    if metrics:
-        print(f"Roles: {metrics.get('roles')}")
-        print(f"Similarity: {metrics.get('similarity'):.6f}")
-        print(f"Disagreement: {metrics.get('disagreement'):.6f}")
+    print(f"Metric phases: {list(debate.analysis_metrics.keys())}")
+    for phase, metrics in debate.analysis_metrics.items():
+        print(f"{phase}:")
+        print(f"  Roles: {metrics.get('roles')}")
+        print(f"  Similarity: {metrics.get('similarity'):.6f}")
+        print(f"  Disagreement: {metrics.get('disagreement'):.6f}")
 
     print("\nEngine integration test completed.")
 
