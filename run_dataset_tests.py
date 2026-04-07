@@ -231,11 +231,15 @@ def run_split(
             debate = Debate(model_name=args.model, T=args.temperature, sleep=args.sleep)
             result = debate.run(news_text=item.text, news_path=news_path)
             verdict = result["verdict"]
+            opening_metrics = result.get("analysis_metrics", {}).get("opening", {})
+            opening_disagreement = opening_metrics.get("disagreement")
             gold = normalize_label(item.label)
             is_correct = None
+            error_value = None
             if gold is not None:
                 labeled += 1
                 is_correct = verdict == gold
+                error_value = 0 if is_correct else 1
                 if is_correct:
                     correct += 1
 
@@ -246,6 +250,8 @@ def run_split(
                     "label": gold,
                     "verdict": verdict,
                     "is_correct": is_correct,
+                    "error": error_value,
+                    "opening_disagreement": opening_disagreement,
                 }
             )
         except Exception as exc:  # pragma: no cover - runtime safety
@@ -257,7 +263,9 @@ def run_split(
                     "label": normalize_label(item.label),
                     "verdict": None,
                     "is_correct": None,
-                    "error": str(exc),
+                    "error": None,
+                    "opening_disagreement": None,
+                    "error_message": str(exc),
                 }
             )
         finally:
