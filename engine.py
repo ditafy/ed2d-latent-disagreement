@@ -6,6 +6,8 @@ import time
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 
+import torch
+
 from config import (ROLES, PHASES, DIMENSIONS, FREE_ROUNDS, SAVE_DIR, SAVE_FMT, 
                     AUTO_SAVE, RoleConfig, ENABLE_EVIDENCE, EVIDENCE_PHASE, 
                     PHASE_TEMPLATES, SCORING_JUDGE_ROLES, SUMMARY_JUDGE_CONFIG,
@@ -34,6 +36,27 @@ class Debate:
         self.last_scores: Optional[Dict[str, int]] = None  # Cached scores for the last run
         self.last_verdict: Optional[str] = None            # Cached verdict for the last run
         self.last_summary: Optional[str] = None            # Cached summary for the last run
+        self.analysis_targets = self._build_analysis_targets()
+        self.enabled_analysis_phases = {"Opening"}
+        self.analysis_outputs: Dict[str, Dict[str, Dict]] = self._empty_analysis_outputs()
+        self.analysis_metrics: Dict[str, Dict] = {}
+
+    def _build_analysis_targets(self) -> Dict[str, List[str]]:
+        """Return per-phase roles eligible for latent analysis."""
+        return {
+            "Opening": ["Affirmative_Opening", "Negative_Opening"],
+            "Rebuttal": ["Affirmative_Rebuttal", "Negative_Rebuttal"],
+            "Free": ["Affirmative_Free", "Negative_Free"],
+            "Closing": ["Affirmative_Closing", "Negative_Closing"],
+        }
+
+    def _empty_analysis_outputs(self) -> Dict[str, Dict[str, Dict]]:
+        """Create an empty per-phase analysis output container."""
+        return {phase: {} for phase in self.analysis_targets}
+
+    def _phase_from_role(self, role: str) -> Optional[str]:
+        parts = role.split("_", 1)
+        return parts[1] if len(parts) == 2 else None
 
     def _detect_domain(self, news_text: str) -> str:
         """Detect the domain of the news"""
@@ -141,10 +164,24 @@ class Debate:
         else:
             self.transcript.append({"speaker": role, "text": reply})
 
-    def _ask(self, role: str, prompt: str) -> str:
+    def _ask(self, role: str, prompt: str, return_mode: str = "text") -> str:
         """Ask specified role and record conversation"""
         agent = self.agents[role]
-        reply = agent.ask(self.shared, prompt, temperature=self.T)
+        response = agent.ask(self.shared, prompt, temperature=self.T, return_mode=return_mode)
+        if return_mode == "analysis":
+            reply = response.text
+            phase = self._phase_from_role(role)
+            if phase is None:
+                raise ValueError(f"Could not infer phase from role name: {role}")
+            self.analysis_outputs.setdefault(phase, {})
+            self.analysis_outputs[phase][role] = {
+                "text": response.text,
+                "pooled_vector": response.pooled_vector,
+                "generated_token_count": response.generated_token_count,
+                "sequence_length": response.sequence_length,
+            }
+        else:
+            reply = response
         self._record(role, prompt, reply)
         _log(f"{role}:\n{reply}\n")
         return reply
@@ -213,7 +250,13 @@ class Debate:
             seq = self._get_speakers_sequence(phase, speakers)
             for turn, sp in enumerate(seq, 1):
                 prompt = self._build_prompt(sp, tpl, news_text, turn, phase)
-                self._ask(sp, prompt)
+                target_roles = set(self.analysis_targets.get(phase, []))
+                return_mode = (
+                    "analysis"
+                    if phase in self.enabled_analysis_phases and sp in target_roles
+                    else "text"
+                )
+                self._ask(sp, prompt, return_mode=return_mode)
 
     def _get_speakers_sequence(self, phase: str, speakers: List[str]):
         """Get speakers sequence"""
@@ -289,6 +332,8 @@ class Debate:
         """Run complete debate process"""
         assert news_text, "news_text cannot be empty"
         self.news_stem = news_path.stem
+        self.analysis_outputs = self._empty_analysis_outputs()
+        self.analysis_metrics = {}
 
         # Set up domain context
         self._setup_domain_context(news_text)
@@ -300,14 +345,52 @@ class Debate:
 
         # Execute debate phases
         self._run_debate_phases(news_text)
+        self._compute_analysis_metrics()
         
         # Judging phase
         scores, verdict, summary = self._judge(news_text)
+        analysis_summary = {}
+        for phase, role_data in self.analysis_outputs.items():
+            analysis_summary[phase] = {}
+            for role, data in role_data.items():
+                pooled_vector = data.get("pooled_vector")
+                analysis_summary[phase][role] = {
+                    "text": data.get("text"),
+                    "pooled_vector_shape": tuple(pooled_vector.shape) if pooled_vector is not None else None,
+                    "generated_token_count": data.get("generated_token_count"),
+                    "sequence_length": data.get("sequence_length"),
+                }
         return {
             "scores": scores,
             "verdict": verdict,
-            "summary": summary
+            "summary": summary,
+            "analysis_outputs": analysis_summary,
+            "analysis_metrics": self.analysis_metrics,
         }
+
+    def _compute_analysis_metrics(self):
+        """Compute per-phase similarity/disagreement for tracked analysis roles."""
+        metrics: Dict[str, Dict] = {}
+        for phase, roles in self.analysis_targets.items():
+            role_outputs = self.analysis_outputs.get(phase, {})
+            if len(roles) != 2:
+                continue
+            left_role, right_role = roles
+            left_data = role_outputs.get(left_role, {})
+            right_data = role_outputs.get(right_role, {})
+            left_vec = left_data.get("pooled_vector")
+            right_vec = right_data.get("pooled_vector")
+            if left_vec is None or right_vec is None:
+                continue
+
+            similarity = torch.nn.functional.cosine_similarity(left_vec, right_vec, dim=1).item()
+            metrics[phase.lower()] = {
+                "roles": [left_role, right_role],
+                "similarity": similarity,
+                "disagreement": 1.0 - similarity,
+            }
+
+        self.analysis_metrics = metrics
 
     def _judge(self, news_text: str) -> Tuple[Dict[str, int], str, str]:
         """Execute evaluation and verdict"""
