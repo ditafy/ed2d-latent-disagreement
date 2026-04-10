@@ -384,10 +384,14 @@ class Debate:
                 continue
 
             similarity = torch.nn.functional.cosine_similarity(left_vec, right_vec, dim=1).item()
+            disagreement = 1.0 - similarity
             metrics[phase.lower()] = {
                 "roles": [left_role, right_role],
                 "similarity": similarity,
-                "disagreement": 1.0 - similarity,
+                "disagreement": disagreement,
+                "count": 1,
+                "mean": disagreement,
+                "std": 0.0,
             }
 
         self.analysis_metrics = metrics

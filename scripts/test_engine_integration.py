@@ -108,6 +108,9 @@ def main() -> None:
         print(f"  Roles: {metrics.get('roles')}")
         print(f"  Similarity: {metrics.get('similarity'):.6f}")
         print(f"  Disagreement: {metrics.get('disagreement'):.6f}")
+        print(f"  Count: {metrics.get('count')}")
+        print(f"  Mean: {metrics.get('mean'):.6f}")
+        print(f"  Std: {metrics.get('std'):.6f}")
 
     print("\nEngine integration test completed.")
 
