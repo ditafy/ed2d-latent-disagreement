@@ -9,6 +9,7 @@ Example:
 
 import argparse
 import json
+import math
 import re
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -160,6 +161,31 @@ def sanitize_id(raw_id: object, fallback: int) -> str:
     return candidate or f"item_{fallback}"
 
 
+def summarize_scalar(values: List[float]) -> Dict[str, Optional[float]]:
+    """Return count/mean/std for a list of scalar values."""
+    if not values:
+        return {"count": 0, "mean": None, "std": None}
+
+    count = len(values)
+    mean = sum(values) / count
+    variance = sum((v - mean) ** 2 for v in values) / count
+    return {
+        "count": count,
+        "mean": round(mean, 6),
+        "std": round(math.sqrt(variance), 6),
+    }
+
+
+def collect_phase_disagreements(result: Dict) -> Dict[str, Optional[float]]:
+    """Extract disagreement scores for each analyzed debate phase."""
+    analysis_metrics = result.get("analysis_metrics", {})
+    phase_disagreements: Dict[str, Optional[float]] = {}
+    for phase in ["opening", "rebuttal", "free", "closing"]:
+        phase_metrics = analysis_metrics.get(phase, {})
+        phase_disagreements[f"{phase}_disagreement"] = phase_metrics.get("disagreement")
+    return phase_disagreements
+
+
 def load_dataset_splits(args: argparse.Namespace) -> Dict[str, List[NewsItem]]:
     """Load dataset splits based on CLI arguments."""
     if args.dataset == "weibo21":
@@ -231,8 +257,7 @@ def run_split(
             debate = Debate(model_name=args.model, T=args.temperature, sleep=args.sleep)
             result = debate.run(news_text=item.text, news_path=news_path)
             verdict = result["verdict"]
-            opening_metrics = result.get("analysis_metrics", {}).get("opening", {})
-            opening_disagreement = opening_metrics.get("disagreement")
+            phase_disagreements = collect_phase_disagreements(result)
             gold = normalize_label(item.label)
             is_correct = None
             error_value = None
@@ -243,31 +268,34 @@ def run_split(
                 if is_correct:
                     correct += 1
 
-            records.append(
-                {
-                    "id": item.id if item.id is not None else idx,
-                    "split": split,
-                    "label": gold,
-                    "verdict": verdict,
-                    "is_correct": is_correct,
-                    "error": error_value,
-                    "opening_disagreement": opening_disagreement,
-                }
-            )
+            record = {
+                "id": item.id if item.id is not None else idx,
+                "split": split,
+                "label": gold,
+                "verdict": verdict,
+                "is_correct": is_correct,
+                "error": error_value,
+            }
+            record.update(phase_disagreements)
+            records.append(record)
         except Exception as exc:  # pragma: no cover - runtime safety
             failed += 1
-            records.append(
+            record = {
+                "id": item.id if item.id is not None else idx,
+                "split": split,
+                "label": normalize_label(item.label),
+                "verdict": None,
+                "is_correct": None,
+                "error": None,
+                "error_message": str(exc),
+            }
+            record.update(
                 {
-                    "id": item.id if item.id is not None else idx,
-                    "split": split,
-                    "label": normalize_label(item.label),
-                    "verdict": None,
-                    "is_correct": None,
-                    "error": None,
-                    "opening_disagreement": None,
-                    "error_message": str(exc),
+                    f"{phase}_disagreement": None
+                    for phase in ["opening", "rebuttal", "free", "closing"]
                 }
             )
+            records.append(record)
         finally:
             if progress:
                 progress.update(1)
@@ -279,6 +307,14 @@ def run_split(
         "accuracy": round(correct / labeled, 4) if labeled else None,
         "failed": failed,
     }
+    for phase in ["opening", "rebuttal", "free", "closing"]:
+        phase_key = f"{phase}_disagreement"
+        phase_values = [
+            float(record[phase_key])
+            for record in records
+            if record.get(phase_key) is not None
+        ]
+        metrics[f"{phase}_disagreement_stats"] = summarize_scalar(phase_values)
 
     summary = {"dataset": args.dataset, "split": split, "metrics": metrics, "records": records}
     summary_path = base_output / args.dataset / f"{split}_summary.json"
