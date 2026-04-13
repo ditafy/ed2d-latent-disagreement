@@ -37,7 +37,7 @@ class Debate:
         self.last_verdict: Optional[str] = None            # Cached verdict for the last run
         self.last_summary: Optional[str] = None            # Cached summary for the last run
         self.analysis_targets = self._build_analysis_targets()
-        self.enabled_analysis_phases = {"Opening"}
+        self.enabled_analysis_phases = set(self.analysis_targets)
         self.analysis_outputs: Dict[str, Dict[str, Dict]] = self._empty_analysis_outputs()
         self.analysis_metrics: Dict[str, Dict] = {}
 
@@ -351,10 +351,15 @@ class Debate:
         scores, verdict, summary = self._judge(news_text)
         analysis_summary = {}
         for phase, role_data in self.analysis_outputs.items():
-            analysis_summary[phase] = {}
+            phase_key = phase.lower()
+            phase_metrics = self.analysis_metrics.get(phase_key, {})
+            analysis_summary[phase] = {
+                "metrics": phase_metrics,
+                "roles": {},
+            }
             for role, data in role_data.items():
                 pooled_vector = data.get("pooled_vector")
-                analysis_summary[phase][role] = {
+                analysis_summary[phase]["roles"][role] = {
                     "text": data.get("text"),
                     "pooled_vector_shape": tuple(pooled_vector.shape) if pooled_vector is not None else None,
                     "generated_token_count": data.get("generated_token_count"),
@@ -384,10 +389,14 @@ class Debate:
                 continue
 
             similarity = torch.nn.functional.cosine_similarity(left_vec, right_vec, dim=1).item()
+            disagreement = 1.0 - similarity
             metrics[phase.lower()] = {
                 "roles": [left_role, right_role],
                 "similarity": similarity,
-                "disagreement": 1.0 - similarity,
+                "disagreement": disagreement,
+                "count": 1,
+                "mean": disagreement,
+                "std": 0.0,
             }
 
         self.analysis_metrics = metrics

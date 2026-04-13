@@ -12,7 +12,7 @@ from engine import Debate
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Minimal engine integration test for analysis-mode opening speakers."
+        description="Minimal engine integration test for four-phase analysis-mode speakers."
     )
     parser.add_argument(
         "--model",
@@ -108,6 +108,19 @@ def main() -> None:
         print(f"  Roles: {metrics.get('roles')}")
         print(f"  Similarity: {metrics.get('similarity'):.6f}")
         print(f"  Disagreement: {metrics.get('disagreement'):.6f}")
+        print(f"  Count: {metrics.get('count')}")
+        print(f"  Mean: {metrics.get('mean'):.6f}")
+        print(f"  Std: {metrics.get('std'):.6f}")
+
+    expected_phases = {
+        phase.strip().lower() for phase in args.analysis_phases.split(",") if phase.strip()
+    }
+    observed_phases = set(debate.analysis_metrics.keys())
+    missing_phases = sorted(expected_phases - observed_phases)
+    print("\n=== Phase Coverage Check ===")
+    print(f"Expected metric phases: {sorted(expected_phases)}")
+    print(f"Observed metric phases: {sorted(observed_phases)}")
+    print(f"Missing metric phases: {missing_phases}")
 
     print("\nEngine integration test completed.")
 

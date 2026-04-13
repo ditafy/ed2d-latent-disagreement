@@ -145,7 +145,36 @@ class Agent:
         sections.append("ASSISTANT:")
         return "\n\n".join(sections)
 
-    def _generate_text(self, rendered_input: str, temperature: float, max_new_tokens: int) -> Tuple[str, torch.Tensor, int]:
+    def _pool_last_layer_from_generation(self, hidden_states, generated_token_count: int) -> torch.Tensor | None:
+        """Pool the final-layer state emitted at each decoding step."""
+        if not hidden_states:
+            return None
+
+        final_token_states = []
+        for step_hidden in hidden_states:
+            if not step_hidden:
+                continue
+            final_layer = step_hidden[-1]
+            if final_layer is None or final_layer.ndim != 3:
+                continue
+            final_token_states.append(final_layer[:, -1, :])
+
+        if not final_token_states:
+            return None
+
+        if generated_token_count > 0:
+            final_token_states = final_token_states[-generated_token_count:]
+
+        stacked_states = torch.stack(final_token_states, dim=1)
+        return stacked_states.mean(dim=1)
+
+    def _generate_text(
+        self,
+        rendered_input: str,
+        temperature: float,
+        max_new_tokens: int,
+        collect_pooled_vector: bool = False,
+    ) -> Tuple[str, torch.Tensor, int, torch.Tensor | None]:
         inputs = self.tokenizer(rendered_input, return_tensors="pt")
         inputs = {k: v.to(self.model_device) for k, v in inputs.items()}
         input_length = inputs["input_ids"].shape[1]
@@ -159,31 +188,26 @@ class Agent:
         }
         if temperature > 0:
             generation_kwargs["temperature"] = temperature
+        if collect_pooled_vector:
+            generation_kwargs["return_dict_in_generate"] = True
+            generation_kwargs["output_hidden_states"] = True
 
         with torch.no_grad():
             generated = self.model.generate(**generation_kwargs)
 
-        generated_only_ids = generated[0, input_length:]
+        generation_output = generated if collect_pooled_vector else None
+        sequences = generated.sequences if collect_pooled_vector else generated
+
+        generated_only_ids = sequences[0, input_length:]
         generated_text = self.tokenizer.decode(generated_only_ids, skip_special_tokens=True).strip()
-        new_tokens = generated.shape[1] - input_length
-        return generated_text, generated, new_tokens
-
-    def _extract_pooled_vector(self, generated_ids: torch.Tensor, input_length: int) -> torch.Tensor:
-        attention_mask = torch.ones_like(generated_ids, device=generated_ids.device)
-        with torch.no_grad():
-            outputs = self.model(
-                input_ids=generated_ids,
-                attention_mask=attention_mask,
-                output_hidden_states=True,
-                return_dict=True,
+        new_tokens = sequences.shape[1] - input_length
+        pooled_vector = None
+        if generation_output is not None:
+            pooled_vector = self._pool_last_layer_from_generation(
+                generation_output.hidden_states,
+                generated_token_count=new_tokens,
             )
-
-        final_hidden = outputs.hidden_states[-1]
-        if generated_ids.shape[1] > input_length:
-            pooled_source = final_hidden[:, input_length:, :]
-        else:
-            pooled_source = final_hidden
-        return pooled_source.mean(dim=1)
+        return generated_text, sequences, new_tokens, pooled_vector
 
     def _generate_from_messages(
         self,
@@ -195,17 +219,12 @@ class Agent:
         time.sleep(self.sleep_time)
         rendered_input = self._render_input_text(messages)
         effective_max_tokens = max_new_tokens or self._calculate_max_tokens(rendered_input)
-        generated_text, generated_ids, generated_token_count = self._generate_text(
+        generated_text, generated_ids, generated_token_count, pooled_vector = self._generate_text(
             rendered_input,
             temperature=temperature,
             max_new_tokens=effective_max_tokens,
+            collect_pooled_vector=return_mode == "analysis",
         )
-
-        pooled_vector = None
-        if return_mode == "analysis":
-            original_inputs = self.tokenizer(rendered_input, return_tensors="pt")
-            input_length = original_inputs["input_ids"].shape[1]
-            pooled_vector = self._extract_pooled_vector(generated_ids, input_length)
 
         return AgentResponse(
             text=generated_text,
