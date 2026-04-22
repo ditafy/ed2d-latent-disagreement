@@ -100,7 +100,7 @@ class Agent:
             {"role": "user", "content": "Please provide the summary."},
         ]
         try:
-            return self._generate_from_messages(summary_messages, temperature=0.3, max_new_tokens=256).text
+            return self._generate_from_messages(summary_messages, temperature=0.2, max_new_tokens=256).text
         except Exception as exc:
             print(f"[⚠️ Summarization Failed] {exc}")
             return "[Summary unavailable]"

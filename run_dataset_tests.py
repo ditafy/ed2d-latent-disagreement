@@ -39,7 +39,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--val-path", help="Weibo21 validation split (.pkl).")
     parser.add_argument("--test-path", help="Test split (.pkl for Weibo21, .csv for FakeNewsDataset).")
     parser.add_argument("--model", default="gpt-4o", help="OpenAI chat model name.")
-    parser.add_argument("--temperature", type=float, default=1.0, help="Sampling temperature for debate agents.")
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=None,
+        help="Optional global temperature override. If omitted, role-specific defaults are used.",
+    )
     parser.add_argument("--sleep", type=float, default=1.0, help="Sleep seconds between OpenAI calls.")
     parser.add_argument(
         "--limit",
