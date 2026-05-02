@@ -13,15 +13,21 @@ def _log(msg: str):
 class EvidenceSystem:
     """Evidence system responsible for keyword extraction and Wikipedia retrieval"""
     
-    def __init__(self, model_name: str, temperature: float = 0.3):
+    def __init__(
+        self,
+        model_name: str,
+        keyword_extractor_temperature: float = 0.2,
+        evidence_evaluator_temperature: float = 0.0,
+    ):
         self.model_name = model_name
-        self.temperature = temperature
+        self.keyword_extractor_temperature = keyword_extractor_temperature
+        self.evidence_evaluator_temperature = evidence_evaluator_temperature
         self.keyword_extractor = self._create_keyword_extractor()
         self.evidence_evaluator = self._create_evidence_evaluator()
         
     def _create_keyword_extractor(self) -> Agent:
         """Create keyword extractor"""
-        extractor = Agent(self.model_name, "KeywordExtractor", self.temperature)
+        extractor = Agent(self.model_name, "KeywordExtractor", self.keyword_extractor_temperature)
         extractor.set_meta_prompt(
             "Extract the most important entities and key concepts from the given news text. "
             "Return ONLY a JSON array of keywords, like: [\"keyword1\", \"keyword2\", \"keyword3\"]. "
@@ -31,7 +37,7 @@ class EvidenceSystem:
     
     def _create_evidence_evaluator(self) -> Agent:
         """Create evidence evaluator"""
-        evaluator = Agent(self.model_name, "EvidenceEvaluator", self.temperature)
+        evaluator = Agent(self.model_name, "EvidenceEvaluator", self.evidence_evaluator_temperature)
         evaluator.set_meta_prompt(
             "You are an evidence evaluator. Given a news claim and supporting evidence from Wikipedia, "
             "decide whether the evidence indicates the claim is TRUE, FALSE, or inconclusive. "
@@ -42,7 +48,7 @@ class EvidenceSystem:
     def extract_keywords(self, news_text: str) -> List[str]:
         """Extract keywords from news text"""
         try:
-            response = self.keyword_extractor.ask([], news_text, self.temperature)
+            response = self.keyword_extractor.ask([], news_text, self.keyword_extractor_temperature)
             # Try to parse JSON
             keywords = self._parse_keywords_response(response)
             return keywords[:5]  # Limit to maximum 5 keywords
@@ -104,7 +110,7 @@ class EvidenceSystem:
         )
         
         try:
-            response = self.evidence_evaluator.ask([], evaluation_prompt, self.temperature)
+            response = self.evidence_evaluator.ask([], evaluation_prompt, self.evidence_evaluator_temperature)
             response = response.strip().upper()
             
             if 'SUPPORTS_TRUE' in response or 'TRUE' in response:

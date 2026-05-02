@@ -48,3 +48,6 @@ model-cache/
 
 # Jupyter
 .ipynb_checkpoints/
+
+#test
+scripts/test/

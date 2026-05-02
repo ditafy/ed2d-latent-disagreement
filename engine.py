@@ -22,14 +22,22 @@ def _log(msg: str):
         print(msg)
 
 class Debate:
-    def __init__(self, *, model_name="gpt-4o", T=1, sleep=1):
+    def __init__(self, *, model_name="gpt-4o", T: Optional[float] = None, sleep=1):
         self.model_name, self.T, self.sleep = model_name, T, sleep
         self.shared: List[Dict] = []       # Complete context for LLM
         self.transcript: List[Dict] = []   # Concise dialogue for saving
         self.domain: str = ""              # News domain
         self.profiles: Dict[str, str] = {}  # Domain-related profile for each role
         self.agents = self._init_agents()   # Initialize role agents
-        self.evidence_system = EvidenceSystem(model_name, T) if ENABLE_EVIDENCE else None
+        self.evidence_system = (
+            EvidenceSystem(
+                model_name,
+                keyword_extractor_temperature=0.2,
+                evidence_evaluator_temperature=0.0,
+            )
+            if ENABLE_EVIDENCE
+            else None
+        )
         self.evidence_data: Optional[Dict] = None  # Store all evidence data
         self.affirmative_evidence: Optional[Dict] = None  # Available evidence for affirmative
         self.negative_evidence: Optional[Dict] = None     # Available evidence for negative
@@ -58,6 +66,14 @@ class Debate:
         parts = role.split("_", 1)
         return parts[1] if len(parts) == 2 else None
 
+    def _get_role_temperature(self, role_name: str) -> float:
+        """Return the default temperature for a debate or judge role."""
+        if role_name.startswith("Affirmative_") or role_name.startswith("Negative_"):
+            return 0.3
+        if role_name.startswith("Judge_"):
+            return 0.0
+        return 0.0
+
     def _detect_domain(self, news_text: str) -> str:
         """Detect the domain of the news"""
         detector = Agent(self.model_name, "DomainDetector", temperature=0.0)
@@ -77,7 +93,7 @@ class Debate:
                     f"Provide a brief professional profile (1 sentence) for a '{role_name}' "
                     f"role relevant to this domain."
                 )
-                profiles[role_name] = agent.ask([], prompt, temperature=1).strip()
+                profiles[role_name] = agent.ask([], prompt, temperature=0.2).strip()
         return profiles
 
     def _create_role_configs(self) -> List[RoleConfig]:
@@ -140,7 +156,15 @@ class Debate:
     def _init_agents(self) -> Dict[str, Agent]:
         """Initialize all role agents"""
         cfgs = self._create_role_configs()
-        return {c.name: build_agent(c, self.model_name, self.T, self.sleep) for c in cfgs}
+        return {
+            c.name: build_agent(
+                c,
+                self.model_name,
+                self._get_role_temperature(c.name),
+                self.sleep,
+            )
+            for c in cfgs
+        }
 
     def _get_fixed_stance(self, speaker: str) -> str:
         """Return fixed stance reminder based on speaker identity"""
