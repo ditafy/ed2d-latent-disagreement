@@ -14,6 +14,7 @@ from config import (ROLES, PHASES, DIMENSIONS, FREE_ROUNDS, SAVE_DIR, SAVE_FMT,
                     PRINT_DEBATE_LOGS)
 from agent import build_agent, Agent
 from evidence_system import EvidenceSystem
+from task_specs import TaskSpec, get_task_spec
 
 
 def _log(msg: str):
@@ -22,11 +23,19 @@ def _log(msg: str):
         print(msg)
 
 class Debate:
-    def __init__(self, *, model_name="gpt-4o", T: Optional[float] = None, sleep=1):
+    def __init__(
+        self,
+        *,
+        model_name="gpt-4o",
+        T: Optional[float] = None,
+        sleep=1,
+        task_spec: Optional[TaskSpec] = None,
+    ):
         self.model_name, self.T, self.sleep = model_name, T, sleep
+        self.task_spec = task_spec or get_task_spec("fakenewsdataset")
         self.shared: List[Dict] = []       # Complete context for LLM
         self.transcript: List[Dict] = []   # Concise dialogue for saving
-        self.domain: str = ""              # News domain
+        self.domain: str = ""              # Input/task domain
         self.profiles: Dict[str, str] = {}  # Domain-related profile for each role
         self.agents = self._init_agents()   # Initialize role agents
         self.evidence_system = (
@@ -35,7 +44,7 @@ class Debate:
                 keyword_extractor_temperature=0.2,
                 evidence_evaluator_temperature=0.0,
             )
-            if ENABLE_EVIDENCE
+            if self._evidence_enabled()
             else None
         )
         self.evidence_data: Optional[Dict] = None  # Store all evidence data
@@ -74,14 +83,18 @@ class Debate:
             return 0.0
         return 0.0
 
-    def _detect_domain(self, news_text: str) -> str:
-        """Detect the domain of the news"""
+    def _evidence_enabled(self) -> bool:
+        """Return whether external evidence is enabled for the current task."""
+        return ENABLE_EVIDENCE and self.task_spec.enable_evidence
+
+    def _detect_domain(self, input_text: str) -> str:
+        """Detect the topical domain of the current task input."""
         detector = Agent(self.model_name, "DomainDetector", temperature=0.0)
         detector.set_meta_prompt(
-            "Classify the domain of the following news in one or two words "
-            "(e.g., 'politics', 'finance', 'sports', 'technology', 'health')."
+            f"Classify the domain of the following {self.task_spec.input_name} "
+            "in one or two words."
         )
-        return detector.ask([], news_text).strip()
+        return detector.ask([], input_text).strip()
 
     def _generate_profiles(self, domain: str) -> Dict[str, str]:
         """Generate domain-related professional profiles for each role"""
@@ -89,7 +102,7 @@ class Debate:
         for role_name, agent in self.agents.items():
             if not role_name.startswith("Judge"):  # Only generate profiles for debate roles
                 prompt = (
-                    f"The news domain is '{domain}'. "
+                    f"The {self.task_spec.input_name} domain is '{domain}'. "
                     f"Provide a brief professional profile (1 sentence) for a '{role_name}' "
                     f"role relevant to this domain."
                 )
@@ -134,9 +147,15 @@ class Debate:
     def _create_debate_configs(self, side: str, duties: List[str]) -> List[RoleConfig]:
         """Create debate role configurations"""
         stance = (
-            "You believe the news is true and need to argue in its favor."
+            self.task_spec.affirmative_stance
             if side == "Affirmative"
-            else "You believe the news is false and need to argue against it."
+            else self.task_spec.negative_stance
+        )
+        evidence_instruction = (
+            "When evidence is provided, analyze it carefully and use it to support your arguments. "
+            "If the evidence doesn't support your position, you may choose to focus on other aspects of your argument."
+            if self.task_spec.enable_evidence
+            else "Focus on the given task input, the debate context, and careful reasoning."
         )
         return [
             RoleConfig(
@@ -146,8 +165,7 @@ class Debate:
                 meta_prompt=(
                     f"You are the {duty.lower()} speaker on the {side.lower()} side.\n"
                     f"{stance}\n"
-                    "When evidence is provided, analyze it carefully and use it to support your arguments. "
-                    "If the evidence doesn't support your position, you may choose to focus on other aspects of your argument."
+                    f"{evidence_instruction}"
                 )
             )
             for duty in duties
@@ -169,8 +187,8 @@ class Debate:
     def _get_fixed_stance(self, speaker: str) -> str:
         """Return fixed stance reminder based on speaker identity"""
         stance_map = {
-            "Affirmative": "**Your fixed stance is that the news is true.**",
-            "Negative": "**Your fixed stance is that the news is false.**"
+            "Affirmative": self.task_spec.affirmative_stance_reminder,
+            "Negative": self.task_spec.negative_stance_reminder,
         }
         return stance_map.get(speaker.split('_')[0], "")
 
@@ -223,9 +241,9 @@ class Debate:
                 if "Affirmative" in role
                 else role.replace("Negative", "Affirmative"))
 
-    def _setup_domain_context(self, news_text: str):
+    def _setup_domain_context(self, input_text: str):
         """Set up domain context and role profiles"""
-        self.domain = self._detect_domain(news_text)
+        self.domain = self._detect_domain(input_text)
         self.profiles = self._generate_profiles(self.domain)
         
         # Add profiles to each role's system_prompt
@@ -239,7 +257,7 @@ class Debate:
 
     def _gather_evidence(self, news_text: str):
         """Collect evidence and classify by stance"""
-        if self.evidence_system and ENABLE_EVIDENCE:
+        if self.evidence_system and self._evidence_enabled():
             self.evidence_data = self.evidence_system.gather_evidence(news_text)
             
             # Filter evidence separately for affirmative and negative
@@ -264,13 +282,14 @@ class Debate:
 
     def _run_debate_phases(self, news_text: str):
         """Execute debate phases"""
-        for phase, speakers, tpl in PHASES:
+        for phase, speakers, default_tpl in PHASES:
             _log(f"\n--- {phase} ---")
             
             # Present evidence in specified phase
-            if phase == EVIDENCE_PHASE and ENABLE_EVIDENCE and not self.evidence_data:
+            if phase == EVIDENCE_PHASE and self._evidence_enabled() and not self.evidence_data:
                 self._gather_evidence(news_text)
             
+            tpl = self.task_spec.phase_templates.get(phase, default_tpl)
             seq = self._get_speakers_sequence(phase, speakers)
             for turn, sp in enumerate(seq, 1):
                 prompt = self._build_prompt(sp, tpl, news_text, turn, phase)
@@ -296,7 +315,7 @@ class Debate:
 
     def _get_evidence_for_speaker(self, speaker: str) -> Optional[Dict]:
         """Get favorable evidence for speaker"""
-        if not ENABLE_EVIDENCE or not self.evidence_data:
+        if not self._evidence_enabled() or not self.evidence_data:
             return None
         
         if speaker.startswith("Affirmative"):
@@ -321,15 +340,19 @@ class Debate:
         stance_reminder = self._get_fixed_stance(speaker)
         
         # If it's free debate phase and has evidence, check whether to provide evidence
-        if phase == "Free" and ENABLE_EVIDENCE and self.evidence_data:
+        if phase == "Free" and self._evidence_enabled() and self.evidence_data:
             speaker_evidence = self._get_evidence_for_speaker(speaker)
             
             if speaker_evidence and speaker_evidence.get('evidence'):
                 # Has favorable evidence, use template with evidence
                 evidence_text = self.evidence_system.format_evidence_for_debate(speaker_evidence)
-                template = PHASE_TEMPLATES["Free_Evidence"]
+                template = self.task_spec.phase_templates.get(
+                    "Free_Evidence",
+                    PHASE_TEMPLATES["Free_Evidence"],
+                )
                 base_prompt = template.format(
                     news=news_text,
+                    input_text=news_text,
                     turn=turn,
                     opp=self._last(self._opponent(speaker)),
                     evidence=evidence_text
@@ -339,6 +362,7 @@ class Debate:
                 # No favorable evidence, use normal template
                 base_prompt = template.format(
                     news=news_text,
+                    input_text=news_text,
                     turn=turn,
                     opp=self._last(self._opponent(speaker))
                 )
@@ -346,6 +370,7 @@ class Debate:
             # Use standard template for other cases
             base_prompt = template.format(
                 news=news_text,
+                input_text=news_text,
                 turn=turn,
                 opp=self._last(self._opponent(speaker))
             )
@@ -361,10 +386,10 @@ class Debate:
 
         # Set up domain context
         self._setup_domain_context(news_text)
-        _log(f"\n=== Debate-to-Detect: Truth/Fake News Analysis | Domain: {self.domain} ===")
+        _log(f"\n=== ED2D Task: {self.task_spec.name} | Domain: {self.domain} ===")
 
         # If presenting evidence in opening phase
-        if EVIDENCE_PHASE == "Opening" and ENABLE_EVIDENCE:
+        if EVIDENCE_PHASE == "Opening" and self._evidence_enabled():
             self._gather_evidence(news_text)
 
         # Execute debate phases
@@ -427,6 +452,9 @@ class Debate:
 
     def _judge(self, news_text: str) -> Tuple[Dict[str, int], str, str]:
         """Execute evaluation and verdict"""
+        if self.task_spec.answer_type != "real_fake":
+            return self._judge_task_verdict(news_text)
+
         _log(f"\n--- Scoring Phase ---")
         
         # First calculate scores for five dimensions
@@ -447,6 +475,38 @@ class Debate:
             self._save(news_text, summary, scores, verdict)
 
         # Cache and return
+        self.last_scores = scores
+        self.last_verdict = verdict
+        self.last_summary = summary
+        return scores, verdict, summary
+
+    def _judge_task_verdict(self, input_text: str) -> Tuple[Dict[str, int], str, str]:
+        """Judge non-fake-news tasks using the active task spec."""
+        _log(f"\n--- Task Verdict Phase ---")
+
+        judge_prompt = self.task_spec.judge_prompt_template.format(
+            input_text=input_text,
+            debate_content=self._get_debate_content(),
+            evidence_context="",
+        )
+        raw_verdict = self._ask("Judge_Summary", judge_prompt)
+        verdict = self.task_spec.parse_verdict(raw_verdict)
+
+        _log(f"\n--- Summary Phase ---")
+        summary_prompt = self.task_spec.summary_prompt_template.format(
+            input_text=input_text,
+            debate_content=self._get_debate_content(),
+            evidence_context="",
+            verdict=verdict,
+        )
+        summary = self._ask("Judge_Summary", summary_prompt)
+
+        scores: Dict[str, int] = {}
+        _log(f"Verdict: {verdict}")
+
+        if AUTO_SAVE:
+            self._save(input_text, summary, scores, verdict)
+
         self.last_scores = scores
         self.last_verdict = verdict
         self.last_summary = summary

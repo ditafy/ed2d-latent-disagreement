@@ -1,10 +1,11 @@
 """
-Batch runner for Debate-to-Detect on Weibo21 and FakeNewsDataset.
+Batch runner for ED2D-style debate benchmarks.
 
 Example:
     python run_dataset_tests.py --dataset weibo21 --test-path data/weibo21/test.pkl --model gpt-4o
     python run_dataset_tests.py --dataset fakenewsdataset --data-path data/FakeNewsDataset/test.csv --model gpt-4o-mini
     python run_dataset_tests.py --dataset fakenewsdataset --data-path data/FakeNewsDataset/test.csv --model Qwen/Qwen2.5-14B-Instruct
+    python run_dataset_tests.py --dataset strategyqa --data-path StrategyQA/processed/strategyqa_processed.jsonl --model Qwen/Qwen2.5-14B-Instruct
 """
 
 import argparse
@@ -21,8 +22,9 @@ except ImportError:
     tqdm = None
 
 import engine as debate_engine
-from dataset_loader import FakeNewsDatasetLoader, NewsItem, Weibo21Loader
+from dataset_loader import FakeNewsDatasetLoader, NewsItem, StrategyQALoader, Weibo21Loader
 from engine import Debate
+from task_specs import TaskSpec, get_task_spec
 
 
 def parse_args() -> argparse.Namespace:
@@ -31,10 +33,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--dataset",
         required=True,
-        choices=["weibo21", "fakenewsdataset"],
+        choices=["weibo21", "fakenewsdataset", "strategyqa"],
         help="Which dataset loader to use.",
     )
-    parser.add_argument("--data-path", help="Single dataset file (pkl for Weibo21 or csv for FakeNewsDataset).")
+    parser.add_argument("--data-path", help="Single dataset file or processed JSONL for the selected dataset.")
     parser.add_argument("--train-path", help="Weibo21 train split (.pkl).")
     parser.add_argument("--val-path", help="Weibo21 validation split (.pkl).")
     parser.add_argument("--test-path", help="Test split (.pkl for Weibo21, .csv for FakeNewsDataset).")
@@ -107,17 +109,28 @@ def _evenly_pick(seq: List[tuple], k: int, seed: int) -> List[tuple]:
     return selected
 
 
-def sample_stratified_even(items: List[NewsItem], k: int, seed: int = 42) -> List[NewsItem]:
-    """Sample k items, keeping label ratio (REAL/FAKE) and spacing across the split."""
+def sample_stratified_even(
+    items: List[NewsItem],
+    k: int,
+    seed: int = 42,
+    task_spec: Optional[TaskSpec] = None,
+) -> List[NewsItem]:
+    """Sample k items, keeping label ratio when normalized labels are available."""
     k = max(0, min(k, len(items)))
     if k == 0:
         return []
 
     indexed = [(idx, it) for idx, it in enumerate(items)]
-    buckets: Dict[str, List[tuple]] = {"REAL": [], "FAKE": []}
+    normalizer = task_spec.normalize_label if task_spec else normalize_label
+    label_values = (
+        [label for label in task_spec.verdict_labels if label != "UNCERTAIN"]
+        if task_spec
+        else ["REAL", "FAKE"]
+    )
+    buckets: Dict[str, List[tuple]] = {label: [] for label in label_values}
 
     for idx, it in indexed:
-        lbl = normalize_label(it.label)
+        lbl = normalizer(it.label)
         if lbl in buckets:
             buckets[lbl].append((idx, it))
 
@@ -126,13 +139,16 @@ def sample_stratified_even(items: List[NewsItem], k: int, seed: int = 42) -> Lis
         # No labels to stratify; just evenly pick across all items
         return [it for _, it in _evenly_pick(indexed, k, seed)]
 
-    real_ratio = len(buckets["REAL"]) / labeled_total
-    real_k = round(k * real_ratio)
-    fake_k = k - real_k
-
     picked = []
-    picked.extend(_evenly_pick(buckets["REAL"], real_k, seed))
-    picked.extend(_evenly_pick(buckets["FAKE"], fake_k, seed + 1))
+    allocated = 0
+    non_empty_labels = [label for label in label_values if buckets[label]]
+    for bucket_idx, label in enumerate(non_empty_labels):
+        if bucket_idx == len(non_empty_labels) - 1:
+            label_k = k - allocated
+        else:
+            label_k = round(k * (len(buckets[label]) / labeled_total))
+            allocated += label_k
+        picked.extend(_evenly_pick(buckets[label], label_k, seed + bucket_idx))
 
     # Sort back to original order
     picked.sort(key=lambda x: x[0])
@@ -211,6 +227,13 @@ def load_dataset_splits(args: argparse.Namespace) -> Dict[str, List[NewsItem]]:
 
         return splits
 
+    if args.dataset == "strategyqa":
+        loader = StrategyQALoader()
+        jsonl_path = args.data_path or args.test_path
+        if not jsonl_path:
+            jsonl_path = "StrategyQA/processed/strategyqa_processed.jsonl"
+        return {"test": loader.load(jsonl_path)}
+
     # FakeNewsDataset
     loader = FakeNewsDatasetLoader()
     csv_path = args.data_path or args.test_path
@@ -236,6 +259,8 @@ def run_split(
     base_output: Path,
 ) -> Tuple[Path, Dict[str, Optional[float]]]:
     """Run Debate-to-Detect on one split and write summary."""
+    task_spec = get_task_spec(args.dataset)
+
     # Route debate outputs for this split
     debate_output_dir = base_output / args.dataset / split / "debate_outputs"
     debate_output_dir.mkdir(parents=True, exist_ok=True)
@@ -259,16 +284,21 @@ def run_split(
         news_path = debate_output_dir / f"{news_id}.txt"
 
         try:
-            debate = Debate(model_name=args.model, T=args.temperature, sleep=args.sleep)
+            debate = Debate(
+                model_name=args.model,
+                T=args.temperature,
+                sleep=args.sleep,
+                task_spec=task_spec,
+            )
             result = debate.run(news_text=item.text, news_path=news_path)
-            verdict = result["verdict"]
+            verdict = task_spec.parse_verdict(result["verdict"])
             phase_disagreements = collect_phase_disagreements(result)
-            gold = normalize_label(item.label)
+            gold = task_spec.normalize_label(item.label)
             is_correct = None
             error_value = None
             if gold is not None:
                 labeled += 1
-                is_correct = verdict == gold
+                is_correct = task_spec.is_correct(verdict, gold)
                 error_value = 0 if is_correct else 1
                 if is_correct:
                     correct += 1
@@ -278,6 +308,8 @@ def run_split(
                 "split": split,
                 "label": gold,
                 "verdict": verdict,
+                "task_type": task_spec.task_type,
+                "answer_type": task_spec.answer_type,
                 "is_correct": is_correct,
                 "error": error_value,
             }
@@ -288,8 +320,10 @@ def run_split(
             record = {
                 "id": item.id if item.id is not None else idx,
                 "split": split,
-                "label": normalize_label(item.label),
+                "label": task_spec.normalize_label(item.label),
                 "verdict": None,
+                "task_type": task_spec.task_type,
+                "answer_type": task_spec.answer_type,
                 "is_correct": None,
                 "error": None,
                 "error_message": str(exc),
@@ -321,7 +355,14 @@ def run_split(
         ]
         metrics[f"{phase}_disagreement_stats"] = summarize_scalar(phase_values)
 
-    summary = {"dataset": args.dataset, "split": split, "metrics": metrics, "records": records}
+    summary = {
+        "dataset": args.dataset,
+        "task_type": task_spec.task_type,
+        "answer_type": task_spec.answer_type,
+        "split": split,
+        "metrics": metrics,
+        "records": records,
+    }
     summary_path = base_output / args.dataset / f"{split}_summary.json"
     summary_path.parent.mkdir(parents=True, exist_ok=True)
     summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -334,8 +375,9 @@ def run_split(
 
 def main():
     args = parse_args()
+    task_spec = get_task_spec(args.dataset)
 
-    if args.disable_evidence:
+    if args.disable_evidence or not task_spec.enable_evidence:
         debate_engine.ENABLE_EVIDENCE = False
 
     splits = load_dataset_splits(args)
@@ -351,7 +393,12 @@ def main():
 
     for split, items in ordered_splits:
         if args.sample_size:
-            items = sample_stratified_even(items, args.sample_size, seed=args.sample_seed)
+            items = sample_stratified_even(
+                items,
+                args.sample_size,
+                seed=args.sample_seed,
+                task_spec=task_spec,
+            )
         print(f"\n=== Running {args.dataset} [{split}] with {len(items)} items ===")
         summary_path, metrics = run_split(args, split, items, base_output)
         accuracy_display = metrics["accuracy"] if metrics["accuracy"] is not None else "N/A"
