@@ -1,0 +1,102 @@
+StrategyQA processed sample preview
+sample_count=10
+
+===== SAMPLE 1 =====
+id: d03daae5b38423aec74c
+label: YES
+text:
+Question: Would a packed Wembley stadium be likely to have a descendant of the Mongols inside?
+Term: Mongols
+Description: ethnic group of central Asia
+
+Decide whether the answer is YES or NO.
+
+===== SAMPLE 2 =====
+id: bc8bcfe04e4b026e9c96
+label: NO
+text:
+Question: Is the Louvre's pyramid known for being unbreakable?
+Term: Louvre
+Description: Art museum and Historic site in Paris, France
+
+Decide whether the answer is YES or NO.
+
+===== SAMPLE 3 =====
+id: bd3caa68cb957d27b0e2
+label: YES
+text:
+Question: Were Greeks essential to crafting Egyptian Lighthouse of Alexandria?
+Term: Lighthouse of Alexandria
+Description: Ancient lighthouse in Egypt
+
+Decide whether the answer is YES or NO.
+
+===== SAMPLE 4 =====
+id: 1f9b1e6e299a9da962fe
+label: NO
+text:
+Question: Does March begin on the same day of the week as February during leap years?
+Term: March
+Description: third month in the Julian and Gregorian calendars
+
+Decide whether the answer is YES or NO.
+
+===== SAMPLE 5 =====
+id: 43422a156aa28bf24d7c
+label: NO
+text:
+Question: Can the history of art be learned by an amoeba?
+Term: History of art
+Description: history of human creation of works for aesthetic, communicative, or expressive purposes
+
+Decide whether the answer is YES or NO.
+
+===== SAMPLE 6 =====
+id: c406445894101a7f4d71
+label: NO
+text:
+Question: Is a thousand dollars per Days of Our Lives episodes preferred to other soaps?
+Term: Days of Our Lives
+Description: American daytime soap opera
+
+Decide whether the answer is YES or NO.
+
+===== SAMPLE 7 =====
+id: b8677742616fef051f00
+label: YES
+text:
+Question: Are more people today related to Genghis Khan than Julius Caesar?
+Term: Genghis Khan
+Description: founder and first Great Khan of the Mongol Empire
+
+Decide whether the answer is YES or NO.
+
+===== SAMPLE 8 =====
+id: a946324a5ad6d3528da9
+label: YES
+text:
+Question: Does Buddy The Elf know anyone who works in publishing?
+Term: Publishing
+Description: Process of production and dissemination of literature, music, or information
+
+Decide whether the answer is YES or NO.
+
+===== SAMPLE 9 =====
+id: 21ebbfdbb95747f3763f
+label: NO
+text:
+Question: Is Autumn a good time to collect bear pelts in US?
+Term: Autumn
+Description: one of the Earth's four temperate seasons, occurring between summer and winter
+
+Decide whether the answer is YES or NO.
+
+===== SAMPLE 10 =====
+id: 088e22a7b1b40fd2d95b
+label: YES
+text:
+Question: Can the Moscow Kremlin fit inside Disney Land?
+Term: Moscow Kremlin
+Description: fortified complex in Moscow, Russia
+
+Decide whether the answer is YES or NO.

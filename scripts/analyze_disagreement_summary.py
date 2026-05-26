@@ -15,16 +15,60 @@ DEFAULT_JS_EPSILON = 1e-12
 
 def summarize_scalar(values: List[float]) -> Dict[str, Optional[float]]:
     if not values:
-        return {"count": 0, "mean": None, "std": None}
+        return {
+            "count": 0,
+            "mean": None,
+            "std": None,
+            "min": None,
+            "p25": None,
+            "median": None,
+            "p75": None,
+            "iqr": None,
+            "p90": None,
+            "p95": None,
+            "max": None,
+        }
 
     count = len(values)
     mean = sum(values) / count
     variance = sum((value - mean) ** 2 for value in values) / count
+    sorted_values = sorted(values)
+    p25 = percentile(sorted_values, 25)
+    p75 = percentile(sorted_values, 75)
     return {
         "count": count,
         "mean": round(mean, 6),
         "std": round(math.sqrt(variance), 6),
+        "min": round(sorted_values[0], 6),
+        "p25": round(p25, 6),
+        "median": round(percentile(sorted_values, 50), 6),
+        "p75": round(p75, 6),
+        "iqr": round(p75 - p25, 6),
+        "p90": round(percentile(sorted_values, 90), 6),
+        "p95": round(percentile(sorted_values, 95), 6),
+        "max": round(sorted_values[-1], 6),
     }
+
+
+def percentile(sorted_values: Sequence[float], percentile_rank: float) -> float:
+    if not sorted_values:
+        raise ValueError("percentile requires at least one value.")
+
+    if percentile_rank <= 0:
+        return float(sorted_values[0])
+    if percentile_rank >= 100:
+        return float(sorted_values[-1])
+
+    position = (len(sorted_values) - 1) * percentile_rank / 100.0
+    lower_index = math.floor(position)
+    upper_index = math.ceil(position)
+    if lower_index == upper_index:
+        return float(sorted_values[lower_index])
+
+    lower_value = sorted_values[lower_index]
+    upper_value = sorted_values[upper_index]
+    weight = position - lower_index
+    return float(lower_value + (upper_value - lower_value) * weight)
 
 
 def parse_args() -> argparse.Namespace:
@@ -349,7 +393,14 @@ def main() -> None:
         print(f"\n[{group_name}] record_count={group_data['record_count']}")
         for phase in PHASES:
             stats = group_data["phase_stats"][f"{phase}_disagreement_stats"]
-            print(f"  {phase}: count={stats['count']} mean={stats['mean']} std={stats['std']}")
+            print(
+                "  "
+                f"{phase}: count={stats['count']} mean={stats['mean']} std={stats['std']} "
+                f"median={stats['median']} iqr={stats['iqr']} "
+                f"p25={stats['p25']} p75={stats['p75']} "
+                f"p90={stats['p90']} p95={stats['p95']} "
+                f"min={stats['min']} max={stats['max']}"
+            )
 
     print("\n[discriminative_stats]")
     for phase in PHASES:

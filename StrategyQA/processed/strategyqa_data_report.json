@@ -1,0 +1,20 @@
+{
+  "dataset": "strategyqa",
+  "input_format": "question_term_description",
+  "total_raw": 687,
+  "total_processed": 687,
+  "yes_count": 333,
+  "no_count": 354,
+  "empty_question_count": 0,
+  "invalid_answer_count": 0,
+  "duplicate_id_count": 0,
+  "avg_text_chars": 182.89,
+  "max_text_chars": 402,
+  "avg_text_words": 29.09,
+  "max_text_words": 61,
+  "label_set": [
+    "NO",
+    "YES"
+  ],
+  "contains_gold_answer_in_text_policy": "The formatted text asks for YES/NO but does not include the gold label value."
+}
