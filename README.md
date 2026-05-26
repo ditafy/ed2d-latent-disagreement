@@ -26,7 +26,6 @@ The intended benchmark datasets are:
 | GSM8K | multi-step math reasoning | numeric answer | reasoning-heavy comparison task |
 | FakeNewsDataset | misinformation detection | REAL / FAKE | main ED2D misinformation task |
 
-Current runnable dataset adapters are `strategyqa` and `fakenewsdataset`. GSM8K data is included under `grade-school-math-master/`, but its ED2D task adapter still needs to be connected before it can be run through `run_dataset_tests.py`.
 
 ## Measurements
 
@@ -137,3 +136,7 @@ The analysis script reports phase-level disagreement statistics and distribution
 - Use `--disable-evidence` for faster and more reproducible runs.
 - Evidence retrieval is only relevant to the misinformation setting.
 - The current code measures the four-stage ED2D debate pipeline. Single-agent and majority-vote baselines should be added separately if the benchmark matrix is expanded.
+
+## Acknowledgement
+
+This project builds on ED2D, the Debate-to-Detect framework for reformulating misinformation detection as a multi-agent debate with large language models. The original ED2D idea and debate structure are the foundation of this repository; the hidden-state extraction and disagreement/error and benchmark analysis are my extensions.
