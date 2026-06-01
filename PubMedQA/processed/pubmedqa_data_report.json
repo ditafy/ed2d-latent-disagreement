@@ -1,0 +1,26 @@
+{
+  "dataset": "pubmedqa",
+  "split": "test",
+  "source_records": "ori_pqal.json",
+  "source_ground_truth": "test_ground_truth.json",
+  "total_records_available": 1000,
+  "total_ground_truth": 500,
+  "total_processed": 500,
+  "yes_count": 276,
+  "no_count": 169,
+  "maybe_count": 55,
+  "missing_record_count": 0,
+  "invalid_label_count": 0,
+  "skipped_empty_question_or_context_count": 0,
+  "avg_text_chars": 1597.25,
+  "max_text_chars": 2830,
+  "avg_text_words": 235.48,
+  "max_text_words": 431,
+  "avg_context_count": 3.38,
+  "label_set": [
+    "MAYBE",
+    "NO",
+    "YES"
+  ],
+  "leakage_policy": "Formatted text includes QUESTION and CONTEXTS only. final_decision, LONG_ANSWER, and model prediction fields are not written into text."
+}

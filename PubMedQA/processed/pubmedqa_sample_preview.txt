@@ -1,0 +1,156 @@
+PubMedQA processed sample preview
+sample_count=10
+
+===== SAMPLE 1 =====
+id: 10834864
+label: NO
+text:
+Question: Risk factors for avascular necrosis of bone in patients with systemic lupus erythematosus: is there a role for antiphospholipid antibodies?
+
+Abstract context:
+[BACKGROUND] Avascular necrosis of bone (AVN) is a well known complication in patients with systemic lupus erythematosus (SLE).
+
+[OBJECTIVE] To investigate the role of antiphospholipid antibody status (IgM and IgG anticardiolipin antibodies and lupus anticoagulant) with adjustment for corticosteroid use as risk factors for the development of AVN.
+
+[METHODS] A cohort of 265 patients receiving long term follow up in our SLE clinic from 1978 to 1998 was analysed. Patients with AVN complications were detected and then matched for age, sex, ethnicity, duration of disease, and organ disease with two other patients with SLE. A further 31 patients were chosen at random for the analysis.
+
+[RESULTS] Eleven patients had AVN, giving a point prevalence of 4%. There were no significant differences demonstrable in the presence of individual antiphospholipid antibodies (aPL) or their combination between the group with AVN or the two control groups.
+
+Decide whether the answer to the biomedical question is YES, NO, or MAYBE.
+
+===== SAMPLE 2 =====
+id: 11079675
+label: YES
+text:
+Question: Pulmonary valve replacement in adults late after repair of tetralogy of fallot: are we operating too late?
+
+Abstract context:
+[OBJECTIVES] The purpose of this study is to evaluate right ventricular (RV) volume and function after pulmonary valve replacement (PVR) and to address the issue of optimal surgical timing in these patients.
+
+[BACKGROUND] Chronic pulmonary regurgitation (PR) following repair of tetralogy of Fallot (TOF) leads to RV dilation and an increased incidence of sudden cardiac death in adult patients.
+
+[METHODS] We studied 25 consecutive adult patients who underwent PVR for significant PR late after repair of TOF. Radionuclide angiography was performed in all at a mean of 8.2 months (+/- 8 months) before PVR and repeated at a mean of 28.0 months (+/- 22.8 months) after the operation. Right ventricular (RV) end-systolic volume (RVESV), RV end-diastolic volume (RVEDV) and RV ejection fraction (RVEF) were measured.
+
+[RESULTS] Mean RVEDV, RVESV and RVEF remained unchanged after PVR (227.1 ml versus 214.9 ml, p = 0.74; 157.4 ml versus 155.4 ml, p = 0.94; 35.6% versus 34.7%, p = 0.78, respectively). Of the 10 patients with RVEF>or = 0.40 before PVR, 5 patients (50%) maintained a RVEF>or = 0.40 following PVR, whereas only 2 out of 15 patients (13%) with pre-operative values<0.40 reached an RVEF>or = 0.40 postoperatively (p<0.001).
+
+Decide whether the answer to the biomedical question is YES, NO, or MAYBE.
+
+===== SAMPLE 3 =====
+id: 22540518
+label: YES
+text:
+Question: Is micro-computed tomography reliable to determine the microstructure of the maxillary alveolar bone?
+
+Abstract context:
+[OBJECTIVES] To analyze the reliability of micro-computed tomography (micro-CT) to assess bone density and the microstructure of the maxillary bones at the alveolar process in human clinics by direct comparison with conventional stereologic-based histomorphometry.
+
+[MATERIALS AND METHODS] Analysis of osseous microstructural variables including bone volumetric density (BV/TV) of 39 biopsies from the maxillary alveolar bone was performed by micro-CT. Conventional stereologic-based histomorphometry of 10 bone biopsies was performed by optic microscopy (OM) and low-vacuum surface electronic microscopy (SEM). Percentages of bone between micro-CT and conventional stereologic-based histomorphometry were compared.
+
+[RESULTS] Significant positive correlations were observed between BV/TV and the percentage of bone (%Bone) analyzed by SEM (r = 0.933, P < 0.001), by toluidine blue staining OM (r = 0.950, P < 0.001) and by dark field OM (r = 0.667, P = 0.05). The high positive correlation coefficient between BV/TV and trabecular thickness illustrates that a value of BV/TV upper than 50% squares with a bone presenting most of their trabecules thicker than 0.2 mm. The high negative correlation between BV/TV and trabecular separation shows that values of BV/TV upper than 50% squares with a bone presenting most of their trabecules separated less than 0.3 mm each other.
+
+Decide whether the answer to the biomedical question is YES, NO, or MAYBE.
+
+===== SAMPLE 4 =====
+id: 18926458
+label: NO
+text:
+Question: Are octogenarians at high risk for carotid endarterectomy?
+
+Abstract context:
+[BACKGROUND] Several prospective randomized trials have proved carotid endarterectomy to be safe and effective for both symptomatic and asymptomatic patients younger than 80 years of age. Recently, carotid artery stenting (CAS) has been approved for use in selected high-risk patients. It has been proposed that being an octogenarian places patients in this high-risk category.
+
+[STUDY DESIGN] All patients between the ages of 80 to 89 years undergoing carotid endarterectomy during a 12-year period were included in the study. Information included indications for carotid endarterectomy, associated risk factors, length of stay, and hospital course. Perioperative morbidity and mortality, including neurologic events and myocardial infarction, were recorded.
+
+[RESULTS] A total of 103 carotid endarterectomies were performed in 95 octogenarians. Procedures were performed on 59 men and 36 women. Indications for operation included symptomatic carotid stenosis in 44 patients (43%) and asymptomatic carotid stenosis in 59 (57%). Associated risk factors included diabetes mellitus (17%), hypertension (76%), coronary artery disease (28%), hyperlipidemia (39%), and history of smoking (42%). There were 4 perioperative neurologic complications, which included 1 transient ischemic attack (0.97%), 2 minor strokes (1.94%), and 1 major stroke (0.97%). There were no deaths.
+
+Decide whether the answer to the biomedical question is YES, NO, or MAYBE.
+
+===== SAMPLE 5 =====
+id: 15943725
+label: YES
+text:
+Question: Should serum pancreatic lipase replace serum amylase as a biomarker of acute pancreatitis?
+
+Abstract context:
+[BACKGROUND] Serum pancreatic lipase may improve the diagnosis of pancreatitis compared to serum amylase. Both enzymes have been measured simultaneously at our hospital allowing for a comparison of their diagnostic accuracy.
+
+[METHODS] Seventeen thousand five hundred and thirty-one measurements of either serum amylase and or serum pancreatic lipase were made on 10 931 patients treated at a metropolitan teaching hospital between January 2001 and May 2003. Of these, 8937 were initially treated in the Emergency Department. These results were collected in a database, which was linked by the patients' medical record number to the radiology and medical records. Patients with either an elevated lipase value or a discharge diagnosis of acute pancreatitis had their radiological diagnosis reviewed along with their biochemistry and histology record. The diagnosis of acute pancreatitis was made if there was radiological evidence of peripancreatic inflammation.
+
+[RESULTS] One thousand eight hundred and twenty-five patients had either elevated serum amylase and or serum pancreatic lipase. The medical records coded for pancreatitis in a further 55 whose enzymes were not elevated. Three hundred and twenty of these had radiological evidence of acute pancreatitis. Receiver operator characteristic analysis of the initial sample from patients received in the Emergency Department showed improved diagnostic accuracy for serum pancreatic lipase (area under the curve (AUC) 0.948) compared with serum amylase (AUC, 0.906, P<0.05). A clinically useful cut-off point would be at the diagnostic threshold; 208 U/L (normal<190 U/L) for serum pancreatic lipase and 114 U/L (normal 27-100 U/L) for serum amylase where the sensitivity was 90.3 cf., 76.8% and the specificity was 93 cf., 92.6%. 18.8% of the acute pancreatitis patients did not have elevated serum amylase while only 2.9% did not have elevated serum pancreatic lipase on the first emergency department measurement.
+
+Decide whether the answer to the biomedical question is YES, NO, or MAYBE.
+
+===== SAMPLE 6 =====
+id: 20306735
+label: YES
+text:
+Question: Fulfilling human resources development goal in West Africa: can the training of ophthalmologist diplomates be improved?
+
+Abstract context:
+[OBJECTIVE] To ascertain the perspectives of Trainee Ophthalmologist Diplomats (TOD) on the Ophthalmic Diploma Training (ODT) in West Africa with a view to improving the programme.
+
+[METHODS] A survey of set 2005 TOD on ODT was carried out in Ghana, 2006.
+
+[RESULTS] The trainees included 10 (83.35%) males and two (16.7%) females whose ages ranged between thirty-two and fifty-one years. The sponsors of the trainees included Sight Savers International, five (41.7%); Christian Blind Mission International, three (25.0%); Eye Foundation, Lagos, Nigeria two (16.7%); Ministry of Defence Nigeria, one (8.3%); and Health Authority Ghana, one (8.3%). Nine trainees (75.0%) felt the programme was well structured, training allowances were adequate eight (66.7%) and inadequate four (33.3%). Eleven (91.7%) trainees would work wherever they were posted; ten (83.3%) trainees had sense of fulfillment and three (25%) would like to proceed for residency training. All trainees were at least good in chalazion surgery and treatment of common medical eye conditions. Majority were at least good in eye surgery like cataract, eleven (91.7%); trabeculectomy nine (75.0%); pterygium 10 (83.3%); eyelid, eight (66.7%); destructive 11 (91.6%) and refraction 9 (75.0%). Some trainees' perceived problems included inadequate sponsorship (33.3%), short duration of the course four (33.3%) and poor accommodation facility two (16.7%). However, trainees' suggested increase in training posts, four (33.3); training allowance three (25.0%); and incentives for trainers/training hospitals two (16.7%).
+
+Decide whether the answer to the biomedical question is YES, NO, or MAYBE.
+
+===== SAMPLE 7 =====
+id: 21394762
+label: YES
+text:
+Question: Is pelvic pain associated with defecatory symptoms in women with pelvic organ prolapse?
+
+Abstract context:
+[OBJECTIVE] To investigate the significance of pelvic pain and its association with defecatory symptoms in women with pelvic organ prolapse (POP).
+
+[STUDY DESIGN] This is a cross sectional study of 248 women with stage II POP or greater. Women were stratified into "pain" and "no-pain" groups based on their response to a question on the Pelvic Floor Distress Inventory short form. Associations between patient demographics, exam findings and responses to validated questionnaires were evaluated.
+
+[RESULTS] In women with POP, defecatory symptoms are significantly more common in women with pelvic pain including straining with bowel movement (OR 2.4, 95% CI 1.3, 4.6), sense of incomplete emptying (OR 4.4, 95% CI 2.3, 8.2), pain with bowel movement (OR 5.3, 95% CI 1.2, 23.0) and splinting with bowel movement (OR 3.8, 95% CI 2.0, 7.5).
+
+Decide whether the answer to the biomedical question is YES, NO, or MAYBE.
+
+===== SAMPLE 8 =====
+id: 12121321
+label: YES
+text:
+Question: Do mossy fibers release GABA?
+
+Abstract context:
+[PURPOSE] Mossy fibers are the sole excitatory projection from dentate gyrus granule cells to the hippocampus, forming part of the trisynaptic hippocampal circuit. They undergo significant plasticity during epileptogenesis and have been implicated in seizure generation. Mossy fibers are a highly unusual projection in the mammalian brain; in addition to glutamate, they release adenosine, dynorphin, zinc, and possibly other peptides. Mossy fiber terminals also show intense immunoreactivity for the inhibitory neurotransmitter gamma-aminobutyric acid (GABA), and immunoreactivity for GAD67. The purpose of this review is to present physiologic evidence of GABA release by mossy fibers and its modulation by epileptic activity.
+
+[METHODS] We used hippocampal slices from 3- to 5-week-old guinea pigs and made whole-cell voltage clamp recordings from CA3 pyramidal cells. We placed stimulating electrodes in stratum granulosum and adjusted their position in order to recruit mossy fiber to CA3 projections.
+
+[RESULTS] We have shown that electrical stimuli that recruit dentate granule cells elicit monosynaptic GABAA receptor-mediated synaptic signals in CA3 pyramidal neurons. These inhibitory signals satisfy the criteria that distinguish mossy fiber-CA3 synapses: high sensitivity to metabotropic glutamate-receptor agonists, facilitation during repetitive stimulation, and N-methyl-D-aspartate (NMDA) receptor-independent long-term potentiation.
+
+Decide whether the answer to the biomedical question is YES, NO, or MAYBE.
+
+===== SAMPLE 9 =====
+id: 23455575
+label: NO
+text:
+Question: Globulomaxillary cysts--do they really exist?
+
+Abstract context:
+[OBJECTIVES] The so-called "globulomaxillary cyst", described as a fissural cyst, caused by entrapped epithelium between the nasal and maxillary process, is no longer considered for its own entity. Nevertheless, cystic lesions, which correspond to the previous image of globulomaxillary cysts, do still occur in daily practice. This raises the question to which entities pathological processes in this particular region actually belong to.
+
+[MATERIALS AND METHODS] In a retrospective study, 17 cases (12 men and 5 women, 12-59 years old) of primarily diagnosed globulomaxillary cysts are analysed according to clinical, radiological and histological aspects, catamnestic processed and assigned to a new entity. The results are compared with the international literature and draws conclusions on the diagnostic and therapeutic procedure.
+
+[RESULTS] Seven lateral periodontal cysts, four radicular cysts, two keratocystic odontogenic tumours, one adenomatoid odontogenic tumour, one periapical granuloma, one residual cyst and one undefined jaw cyst were determined.
+
+Decide whether the answer to the biomedical question is YES, NO, or MAYBE.
+
+===== SAMPLE 10 =====
+id: 18239988
+label: YES
+text:
+Question: Differentiation of nonalcoholic from alcoholic steatohepatitis: are routine laboratory markers useful?
+
+Abstract context:
+[AIMS] Specific markers for differentiation of nonalcoholic (NASH) from alcoholic steatohepatitis (ASH) are lacking. We investigated the role of routine laboratory parameters in distinguishing NASH from ASH.
+
+[METHODS] Liver biopsies performed at our hospital over a 10-year period were reviewed, 95 patients with steatohepatitis identified and their data prior to biopsy reevaluated. The diagnosis NASH or ASH was assigned (other liver diseases excluded) on the basis of the biopsy and history of alcohol consumption (<140 g/week). Logistic regression models were used for analysis.
+
+[RESULTS] NASH was diagnosed in 58 patients (61%; 30 f) and ASH in 37 (39%; 9 f). High-grade fibrosis (59% vs. 19%, P<0.0001) and an AST/ALT ratio>1 (54.1% vs 20.7%, P = 0.0008) were more common in ASH. The MCV was elevated in 53% of ASH patients and normal in all NASH patients (P<0.0001). Multivariate analysis identified the MCV (P = 0.0013), the AST/ALT ratio (P = 0.011) and sex (P = 0.0029) as relevant regressors (aROC = 0.92). The AST/ALT ratio (P<0.0001) and age (P = 0.00049) were independent predictors of high-grade fibrosis. Differences in MCV were more marked in high-grade fibrosis.
+
+Decide whether the answer to the biomedical question is YES, NO, or MAYBE.
