@@ -23,7 +23,7 @@ The intended benchmark datasets are:
 | Dataset | Task type | Label space | Purpose |
 |---|---|---|---|
 | StrategyQA | commonsense / factual reasoning | YES / NO | yes-no reasoning baseline close to fake-real decisions |
-| GSM8K | multi-step math reasoning | numeric answer | reasoning-heavy comparison task |
+| PubMedQA | biomedical question answering | YES / NO / MAYBE | domain-specific reasoning comparison task |
 | FakeNewsDataset | misinformation detection | REAL / FAKE | main ED2D misinformation task |
 
 
@@ -61,7 +61,7 @@ This lets the analysis compare whether disagreement, convergence, or debate phas
 |   |-- test_local_model.py
 |   `-- test_engine_four_phase_analysis.py
 |-- StrategyQA/              # StrategyQA source and processed JSONL
-|-- grade-school-math-master/ # GSM8K data
+|-- PubMedQA/               # PubMedQA source and processed JSONL
 |-- fakeNewsDatasets/        # FakeNewsDataset text folders
 `-- batch_results/           # Benchmark summaries and debate outputs
 ```
