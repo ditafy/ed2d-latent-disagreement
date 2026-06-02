@@ -6,6 +6,7 @@ Example:
     python run_dataset_tests.py --dataset fakenewsdataset --data-path data/FakeNewsDataset/test.csv --model gpt-4o-mini
     python run_dataset_tests.py --dataset fakenewsdataset --data-path data/FakeNewsDataset/test.csv --model Qwen/Qwen2.5-14B-Instruct
     python run_dataset_tests.py --dataset strategyqa --data-path StrategyQA/processed/strategyqa_processed.jsonl --model Qwen/Qwen2.5-14B-Instruct
+    python run_dataset_tests.py --dataset pubmedqa --data-path PubMedQA/processed/pubmedqa_test_processed.jsonl --model Qwen/Qwen2.5-14B-Instruct
 """
 
 import argparse
@@ -22,7 +23,7 @@ except ImportError:
     tqdm = None
 
 import engine as debate_engine
-from dataset_loader import FakeNewsDatasetLoader, NewsItem, StrategyQALoader, Weibo21Loader
+from dataset_loader import FakeNewsDatasetLoader, NewsItem, PubMedQALoader, StrategyQALoader, Weibo21Loader
 from engine import Debate
 from task_specs import TaskSpec, get_task_spec
 
@@ -33,7 +34,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--dataset",
         required=True,
-        choices=["weibo21", "fakenewsdataset", "strategyqa"],
+        choices=["weibo21", "fakenewsdataset", "strategyqa", "pubmedqa"],
         help="Which dataset loader to use.",
     )
     parser.add_argument("--data-path", help="Single dataset file or processed JSONL for the selected dataset.")
@@ -232,6 +233,13 @@ def load_dataset_splits(args: argparse.Namespace) -> Dict[str, List[NewsItem]]:
         jsonl_path = args.data_path or args.test_path
         if not jsonl_path:
             jsonl_path = "StrategyQA/processed/strategyqa_processed.jsonl"
+        return {"test": loader.load(jsonl_path)}
+
+    if args.dataset == "pubmedqa":
+        loader = PubMedQALoader()
+        jsonl_path = args.data_path or args.test_path
+        if not jsonl_path:
+            jsonl_path = "PubMedQA/processed/pubmedqa_test_processed.jsonl"
         return {"test": loader.load(jsonl_path)}
 
     # FakeNewsDataset
