@@ -84,6 +84,23 @@ def normalize_strategyqa_label(label: object) -> str | None:
     return None
 
 
+def normalize_pubmedqa_label(label: object) -> str | None:
+    if label is None:
+        return None
+
+    value = str(label).strip().lower()
+    if not value or value in {"nan", "none"}:
+        return None
+
+    if value in {"yes", "y", "true", "1"}:
+        return "YES"
+    if value in {"no", "n", "false", "0"}:
+        return "NO"
+    if value in {"maybe", "uncertain", "unknown", "cannot determine", "insufficient"}:
+        return "MAYBE"
+    return None
+
+
 def parse_strategyqa_verdict(text: str | None) -> str:
     if text is None:
         return "UNCERTAIN"
@@ -118,6 +135,51 @@ def parse_strategyqa_verdict(text: str | None) -> str:
     if no_match and not yes_match:
         return "NO"
     return "UNCERTAIN"
+
+
+def parse_pubmedqa_verdict(text: str | None) -> str:
+    if text is None:
+        return "MAYBE"
+
+    raw = str(text).strip()
+    if not raw:
+        return "MAYBE"
+
+    upper = raw.upper()
+    exact = upper.strip(" .:;\"'")
+    if exact in {"YES", "NO", "MAYBE"}:
+        return exact
+
+    uncertainty_pattern = (
+        r"\bMAYBE\b|\bUNCERTAIN\b|\bUNKNOWN\b|"
+        r"\bCANNOT\s+DETERMINE\b|\bINSUFFICIENT\b|\bINCONCLUSIVE\b|"
+        r"\bMIXED\s+EVIDENCE\b"
+    )
+    if re.search(uncertainty_pattern, upper):
+        return "MAYBE"
+
+    explicit_patterns = [
+        r"\bFINAL\s+ANSWER\s*[:=\-]\s*(YES|NO|MAYBE)\b",
+        r"\bVERDICT\s*[:=\-]\s*(YES|NO|MAYBE)\b",
+        r"\bANSWER\s*[:=\-]\s*(YES|NO|MAYBE)\b",
+        r"\bLABEL\s*[:=\-]\s*(YES|NO|MAYBE)\b",
+        r"\bDECISION\s*[:=\-]\s*(YES|NO|MAYBE)\b",
+    ]
+    for pattern in explicit_patterns:
+        match = re.search(pattern, upper)
+        if match:
+            return match.group(1)
+
+    yes_match = re.search(r"\bYES\b", upper)
+    no_match = re.search(r"\bNO\b", upper)
+    maybe_match = re.search(r"\bMAYBE\b", upper)
+    if maybe_match:
+        return "MAYBE"
+    if yes_match and not no_match:
+        return "YES"
+    if no_match and not yes_match:
+        return "NO"
+    return "MAYBE"
 
 
 def exact_match_correct(verdict: str | None, gold: str | None) -> bool:
@@ -161,6 +223,29 @@ STRATEGYQA_PHASE_TEMPLATES = {
     ),
     "Closing": (
         "Summarise your final reasoning and clearly state whether the answer is YES or NO."
+    ),
+}
+
+
+PUBMEDQA_PHASE_TEMPLATES = {
+    "Opening": (
+        "The biomedical question and abstract context are:\n\"\"\"{input_text}\"\"\"\n"
+        "Give your opening statement defending your fixed YES/NO stance. "
+        "Base your argument only on the provided abstract context, and focus on evidence strength."
+    ),
+    "Rebuttal": (
+        "Please rebut your opponent's opening statement above. "
+        "Identify misread evidence, unsupported causal claims, statistical overreach, or uncertainty "
+        "while defending your fixed YES/NO stance."
+    ),
+    "Free": (
+        "Free-debate round {turn}. "
+        "Your opponent just said:\n\"{opp}\"\n"
+        "Respond by addressing their interpretation of the abstract evidence and defending your YES/NO stance."
+    ),
+    "Closing": (
+        "Summarise your final biomedical reasoning from the abstract context and clearly state whether "
+        "your side supports YES or NO. Mention uncertainty only when the evidence is insufficient."
     ),
 }
 
@@ -231,6 +316,42 @@ STRATEGYQA_TASK_SPEC = TaskSpec(
 )
 
 
+PUBMEDQA_TASK_SPEC = TaskSpec(
+    name="pubmedqa",
+    task_type="biomedical_qa",
+    answer_type="yes_no_maybe",
+    input_name="biomedical question",
+    affirmative_stance=(
+        "You believe the correct answer to the biomedical question is YES and need to argue in favor of YES."
+    ),
+    negative_stance=(
+        "You believe the correct answer to the biomedical question is NO and need to argue in favor of NO."
+    ),
+    affirmative_stance_reminder="**Your fixed stance is that the answer is YES.**",
+    negative_stance_reminder="**Your fixed stance is that the answer is NO.**",
+    phase_templates=PUBMEDQA_PHASE_TEMPLATES,
+    judge_prompt_template=(
+        "The original PubMedQA biomedical question and abstract context are:\n{input_text}\n\n"
+        "Debate content:\n{debate_content}\n\n"
+        "Your task is to decide the answer to the biomedical question using only the provided abstract context "
+        "and the debate. Affirmative argues that the answer is YES. Negative argues that the answer is NO. "
+        "Return MAYBE when the abstract evidence is insufficient, mixed, or does not clearly support YES or NO.\n\n"
+        "Return ONLY one of the following labels: YES, NO, or MAYBE."
+    ),
+    summary_prompt_template=(
+        "The original PubMedQA biomedical question and abstract context are:\n{input_text}\n\n"
+        "Debate content:\n{debate_content}\n\n"
+        "Final verdict: {verdict}\n\n"
+        "Please briefly summarize the key abstract evidence, the main disagreement, and the final YES/NO/MAYBE decision."
+    ),
+    verdict_labels=("YES", "NO", "MAYBE"),
+    normalize_label=normalize_pubmedqa_label,
+    parse_verdict=parse_pubmedqa_verdict,
+    is_correct=exact_match_correct,
+    enable_evidence=False,
+)
+
+
 TASK_SPECS = {
     "weibo21": FAKENEWS_TASK_SPEC,
     "fakenewsdataset": FAKENEWS_TASK_SPEC,
@@ -238,6 +359,8 @@ TASK_SPECS = {
     "fake_news": FAKENEWS_TASK_SPEC,
     "strategyqa": STRATEGYQA_TASK_SPEC,
     "strategy_qa": STRATEGYQA_TASK_SPEC,
+    "pubmedqa": PUBMEDQA_TASK_SPEC,
+    "pubmed_qa": PUBMEDQA_TASK_SPEC,
 }
 
 
